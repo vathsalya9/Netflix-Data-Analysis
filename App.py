@@ -286,99 +286,140 @@ if page == 'Subscription Analysis':
 
 elif page == 'Revenue Analysis':
     col1, col2 = st.columns([4,4])
-
     with col1:
-        # Revenue by Gender
-        fig_rev_gender = px.pie(
-            filtered_data.groupby('Gender')['Monthly Revenue'].sum().reset_index(),
-            values='Monthly Revenue', names='Gender',
-            title='Total Revenue by Gender',
-            color_discrete_sequence=px.colors.sequential.Reds
-        )
-        fig_rev_gender.update_layout(
-            plot_bgcolor='black',
-            paper_bgcolor='black',
-            font_color='white',
-            showlegend=True
-        )
-        fig_rev_gender.update_traces(textinfo='label+value')
-        st.plotly_chart(fig_rev_gender, use_container_width=True)
-
-    with col2:
-        # Revenue by Country
-        fig_rev_country = px.bar(
-            filtered_data.groupby('Country')['Monthly Revenue'].sum().reset_index(),
-            x='Country', y='Monthly Revenue',
+        revenue_data = filtered_data.groupby('Country')['Monthly Revenue'].sum().reset_index()
+        fig_revenue_map = px.choropleth(
+            revenue_data,
+            locations='Country',
+            locationmode='country names',
+            color='Monthly Revenue',
+            color_continuous_scale='reds',
             title='Total Revenue by Country',
-            color='Monthly Revenue',
-            color_continuous_scale='reds',
-            text='Monthly Revenue',
+            hover_data={'Country': False, 'Monthly Revenue': False}  # Hide the default hover data
         )
-        fig_rev_country.update_layout(
+        
+        fig_revenue_map.update_layout(
+            geo=dict(
+                bgcolor='black',
+                lakecolor='black',
+                landcolor='black',
+                showocean=True,
+                oceancolor='black'
+            ),
             plot_bgcolor='black',
             paper_bgcolor='black',
-            font_color='white',
-            yaxis={'visible': False},
-            showlegend=False
+            font_color='white'
         )
-        fig_rev_country.update_traces(textposition='outside')
-        st.plotly_chart(fig_rev_country, use_container_width=True)
-
-    col1, col2, col3 = st.columns([4,4,4])
-
-    with col1:
-        # Revenue by Age Group
-        fig_rev_age = px.bar(
-            filtered_data.groupby('Age Group')['Monthly Revenue'].sum().reset_index(),
-            x='Age Group', y='Monthly Revenue',
-            title='Total Revenue by Age',
-            color='Monthly Revenue',
-            color_continuous_scale='reds',
-            text='Monthly Revenue',
+        fig_revenue_map.update_traces(
+            hovertemplate='<b>%{location}</b><br>Total Revenue: $%{z:,.2f}<extra></extra>'
         )
-        fig_rev_age.update_layout(
-            plot_bgcolor='black',
-            paper_bgcolor='black',
-            font_color='white',
-            yaxis={'visible': False},
-            showlegend=False
-        )
-        fig_rev_age.update_traces(textposition='outside')
-        st.plotly_chart(fig_rev_age, use_container_width=True)
-
+        
+        st.plotly_chart(fig_revenue_map, use_container_width=True)
+    
     with col2:
-        # Revenue by Subscription Type
-        fig_rev_type = px.bar(
-            filtered_data.groupby('Subscription Type')['Monthly Revenue'].sum().reset_index(),
-            x='Subscription Type', y='Monthly Revenue',
-            title='Total Revenue by Subscription Type',
-            color='Monthly Revenue',
-            color_continuous_scale='reds',
-            text='Monthly Revenue',
-        )
-        fig_rev_type.update_layout(
+        revenue_gender_data = filtered_data.groupby(['Country', 'Gender'])['Monthly Revenue'].sum().reset_index()
+        color_map = {
+            'Male': '#800517',    # Shade of red for Male
+        'Female': '#F6E3BA'  # Shade of white for Female
+    }
+        
+        fig_revenue_gender = go.Figure()
+        for gender in revenue_gender_data['Gender'].unique():
+            gender_data = revenue_gender_data[revenue_gender_data['Gender'] == gender]
+            fig_revenue_gender.add_trace(
+                go.Bar(
+                    x=gender_data['Country'],
+                    y=gender_data['Monthly Revenue'],
+                    name=gender,
+                    marker_color=color_map[gender],
+                    width=0.6,
+                    text=gender_data['Monthly Revenue'],  # Display values on bars
+                    texttemplate='%{text:.2s}',  # Format text labels
+                    textposition='outside'  # Position text inside bars
+                )
+            )
+        
+        fig_revenue_gender.update_layout(
+            barmode='stack',
+            xaxis_title='Country',
             plot_bgcolor='black',
             paper_bgcolor='black',
             font_color='white',
-            yaxis={'visible': False},
-            showlegend=False
+            legend_title_text='Gender',
+            xaxis=dict(
+                tickangle=-45,  # Rotate x-axis labels for better readability
+                showgrid=False,
+                zeroline=False
+            ),
+            yaxis=dict(
+                showgrid=True,
+                zeroline=False
+            )
         )
-        fig_rev_type.update_traces(textposition='outside')
-        st.plotly_chart(fig_rev_type, use_container_width=True)
+        fig_revenue_gender.update_yaxes(visible=False)
+    
+        # Render the chart
+        st.plotly_chart(fig_revenue_gender, use_container_width=True)
+    revenue_age_data = filtered_data.groupby('Age Group')['Monthly Revenue'].sum().reset_index()
+    
+    # Calculate total revenue by gender
+    revenue_gender_data = filtered_data.groupby('Gender')['Monthly Revenue'].sum().reset_index()
+    
+    # Calculate total revenue by subscription type
+    revenue_plan_data = filtered_data.groupby('Subscription Type')['Monthly Revenue'].sum().reset_index()
 
+    # Create circular charts (pie charts)
+    fig_age = go.Figure(data=[go.Pie(
+        labels=revenue_age_data['Age Group'],
+        values=revenue_age_data['Monthly Revenue'],
+        hole=0.3,  # Make it a donut chart
+        marker=dict(colors=['#800000','#ffefcb','#893f45'])  # Optional colors
+    )])
+    
+    fig_age.update_layout(
+        title_text='Total Revenue by Age',
+        plot_bgcolor='black',
+        paper_bgcolor='black',
+        font_color='white'
+    )
+    fig_gender = go.Figure(data=[go.Pie(
+        labels=revenue_gender_data['Gender'],
+        values=revenue_gender_data['Monthly Revenue'],
+        hole=0.3,  # Make it a donut chart
+        marker=dict(colors=['#800000', '#ab4b52'])  # Optional colors
+    )])
+    
+    fig_gender.update_layout(
+        title_text='Total Revenue by Gender',
+        plot_bgcolor='black',
+        paper_bgcolor='black',
+        font_color='white'
+    )
+    
+    # Create horizontal bar chart for subscription type
+    fig_plan = go.Figure(data=[go.Bar(
+        y=revenue_plan_data['Subscription Type'],
+        x=revenue_plan_data['Monthly Revenue'],
+        orientation='h',  # Horizontal bars
+        marker=dict(color=['#800000', '#f6e3ba','#ab4b52']),  # Optional color
+        text=revenue_plan_data['Monthly Revenue'],
+        textposition='outside'
+    )])
+    
+    fig_plan.update_layout(
+        title_text='Total Revenue by Subscription Type',
+        xaxis_title='Total Revenue',
+        plot_bgcolor='black',
+        paper_bgcolor='black',
+        font_color='white'
+    )
+    fig_plan.update_xaxes(visible=False)
+
+    # Display the charts
+    col1, col2, col3 = st.columns([3,3,3])  # Adjust column widths as needed
+    with col1:
+        st.plotly_chart(fig_age, use_container_width=True)
+    with col2:
+        st.plotly_chart(fig_plan, use_container_width=True)
     with col3:
-        # Revenue by Device
-        fig_rev_device = px.pie(
-            filtered_data.groupby('Device')['Monthly Revenue'].sum().reset_index(),
-            values='Monthly Revenue', names='Device',
-            title='Total Revenue by Device',
-            color_discrete_sequence=px.colors.sequential.Reds
-        )
-        fig_rev_device.update_layout(
-            plot_bgcolor='black',
-            paper_bgcolor='black',
-            font_color='white',
-            showlegend=True
-        )
-        fig_rev_device.update_traces(textinfo='label+value')
-        st.plotly_chart(fig_rev_device, use_container_width=True)
+        st.plotly_chart(fig_gender, use_container_width=True)
